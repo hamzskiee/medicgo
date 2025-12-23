@@ -51,8 +51,8 @@ const ProductsPage: React.FC = () => {
     "Semua",
     "Obat",
     "Vitamin",
-    "Alat Kesehatan",
-    "Perawatan Diri",
+    "Alat-Kesehatan",
+    "Perawatan-Diri",
   ];
 
   // --- FETCH DATA (DENGAN LOGIC PENCARIAN BARU) ---
