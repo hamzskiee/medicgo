@@ -30,7 +30,7 @@ const heroSlides = [
   },
   {
     image:
-      "https://i.pinimg.com/736x/da/29/ca/da29ca4695cf50004787615013801296.jpg",
+      "https://i.pinimg.com/736x/3d/82/6f/3d826f07db448a3226264dce60dcf307.jpg",
     title: "Layanan 24 Jam",
     subtitle: "Selalu siap sedia untuk Anda",
   },
