@@ -1,6 +1,14 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from "react";
 import { CartItem, Product } from "@/types";
 import { toast } from "@/hooks/use-toast";
+// 1. IMPORT USEAUTH
+import { useAuth } from "@/context/AuthContext";
 
 interface CartContextType {
   items: CartItem[];
@@ -18,8 +26,19 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  // 2. AMBIL STATUS USER
+  const { user } = useAuth();
+
   const [items, setItems] = useState<CartItem[]>([]);
   const deliveryFee = 15000;
+
+  // 3. EFEK "PENYAPU OTOMATIS" SAAT LOGOUT
+  useEffect(() => {
+    // Jika user menjadi null (logout), kosongkan array items
+    if (!user) {
+      setItems([]);
+    }
+  }, [user]); // Dijalankan setiap kali status 'user' berubah
 
   const addToCart = useCallback((product: Product, quantity = 1) => {
     setItems((prev) => {

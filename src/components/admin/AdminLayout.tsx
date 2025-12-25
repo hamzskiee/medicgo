@@ -13,21 +13,20 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 
-// 1. IMPORT ADMIN HEADER YANG BARU DIBUAT
+// Import Header Admin
 import { AdminHeader } from "@/components/admin/AdminHeader";
-// (Pastikan path import ini sesuai dengan lokasi file AdminHeader.tsx Anda)
 
 export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout } = useAuth(); // Ambil fungsi logout dari context
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
-  // STATE NOTIFIKASI
+  // STATE NOTIFIKASI (Badge Merah)
   const [pendingRecipeCount, setPendingRecipeCount] = useState(0);
 
   const fetchPendingCount = async () => {
-    // Hitung yg 'pending' (butuh harga) ATAU 'paid' (butuh dikirim)
+    // Hitung resep yg butuh perhatian ('pending' atau 'paid')
     const { count, error } = await supabase
       .from("prescriptions")
       .select("*", { count: "exact", head: true })
@@ -40,9 +39,26 @@ export default function AdminLayout() {
 
   useEffect(() => {
     fetchPendingCount();
+    // Update badge setiap 5 detik
     const interval = setInterval(fetchPendingCount, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // --- FUNGSI LOGOUT YANG AMAN ---
+  const handleLogout = async () => {
+    try {
+      // 1. Hapus sesi di Supabase (Server-side)
+      await supabase.auth.signOut();
+
+      // 2. Hapus state lokal (Client-side)
+      logout();
+
+      // 3. Arahkan ke halaman login admin
+      navigate("/admin/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   const menuItems = [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -71,7 +87,12 @@ export default function AdminLayout() {
 
         <nav className="p-4 space-y-1">
           {menuItems.map((item) => {
-            const isActive = location.pathname === item.href;
+            // Cek apakah URL aktif (exact match atau startsWith untuk sub-menu)
+            const isActive =
+              location.pathname === item.href ||
+              (item.href !== "/admin" &&
+                location.pathname.startsWith(item.href));
+
             return (
               <Link
                 key={item.href}
@@ -101,19 +122,16 @@ export default function AdminLayout() {
           <Button
             variant="ghost"
             className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-            onClick={() => {
-              logout();
-              navigate("/auth");
-            }}
+            onClick={handleLogout} // <--- Gunakan fungsi handleLogout yang baru
           >
             <LogOut className="mr-2 h-5 w-5" /> Keluar
           </Button>
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content Wrapper */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* A. HEADER MOBILE (Hanya muncul di layar kecil) */}
+        {/* A. HEADER MOBILE (Hanya muncul di layar kecil < lg) */}
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 lg:hidden shrink-0">
           <span className="font-bold text-slate-900">Admin Panel</span>
           <Button
@@ -125,15 +143,24 @@ export default function AdminLayout() {
           </Button>
         </header>
 
-      
+        {/* B. HEADER DESKTOP (Hanya muncul di layar besar >= lg) */}
         <div className="hidden lg:block shrink-0">
           <AdminHeader />
         </div>
 
-        <div className="flex-1 overflow-auto p-6">
+        {/* C. KONTEN HALAMAN (Scrollable Area) */}
+        <div className="flex-1 overflow-auto p-6 scrollbar-hide">
           <Outlet />
         </div>
       </main>
+
+      {/* Overlay untuk Mobile Sidebar (Optional tapi bagus utk UX) */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
     </div>
   );
 }
