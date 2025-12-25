@@ -1,5 +1,10 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import {
+  Link,
+  useNavigate,
+  useLocation,
+  useSearchParams,
+} from "react-router-dom";
 import {
   Search,
   ShoppingCart,
@@ -37,13 +42,30 @@ import medicGoLogo from "@/assets/medicgo-logo.png";
 export const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Hooks Router
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // Context
   const { totalItems } = useCart();
   const { isAuthenticated, user, logout } = useAuth();
+
+  // 1. SINKRONISASI INPUT DENGAN URL
+  // Jika URL berubah (misal user klik kategori), update atau kosongkan kolom search
+  useEffect(() => {
+    if (location.pathname === "/produk") {
+      setSearchQuery(searchParams.get("search") || "");
+    } else {
+      setSearchQuery("");
+    }
+  }, [location.pathname, searchParams]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      // Encode URI component agar karakter spasi/% aman
       navigate(`/produk?search=${encodeURIComponent(searchQuery)}`);
       setIsMenuOpen(false);
     }
@@ -67,16 +89,20 @@ export const Header: React.FC = () => {
     { label: "Lacak Pesanan", href: "/lacak-pesanan", requiresAuth: true },
   ];
 
-  const handleProtectedLinkClick = (
-    e: React.MouseEvent,
-    requiresAuth: boolean,
-    href: string
-  ) => {
-    if (requiresAuth && !isAuthenticated) {
-      e.preventDefault();
-      navigate("/auth", { state: { from: href } });
+  // 2. FUNGSI NAVIGASI MANUAL (SOLUSI UTAMA)
+  // Menangani klik link agar bekerja walau di halaman yang sama
+  const handleNavigation = (e: React.MouseEvent, link: any) => {
+    e.preventDefault(); // Mencegah reload browser default
+
+    // Cek Login
+    if (link.requiresAuth && !isAuthenticated) {
+      navigate("/auth", { state: { from: link.href } });
+    } else {
+      // Navigasi normal (React Router akan mendeteksi perubahan query param)
+      navigate(link.href);
     }
-    setIsMenuOpen(false);
+
+    setIsMenuOpen(false); // Tutup menu mobile jika terbuka
   };
 
   return (
@@ -113,7 +139,7 @@ export const Header: React.FC = () => {
             </div>
           </form>
 
-          {/* Actions Area (Right Side) - LEBIH RAPI */}
+          {/* Actions Area (Right Side) */}
           <div className="flex items-center gap-3 sm:gap-4">
             {/* Upload Resep Button */}
             <Link to="/upload-resep" className="hidden lg:block">
@@ -142,10 +168,10 @@ export const Header: React.FC = () => {
               </Button>
             </Link>
 
-            {/* Separator / Divider Vertikal */}
+            {/* Separator */}
             <div className="hidden sm:block h-8 w-[1px] bg-slate-200 mx-1"></div>
 
-            {/* User Profile / Auth - Menggunakan Dropdown agar Rapi */}
+            {/* User Profile / Auth */}
             {isAuthenticated ? (
               <div className="hidden sm:flex items-center">
                 <DropdownMenu>
@@ -194,7 +220,10 @@ export const Header: React.FC = () => {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={logout}
+                      onClick={() => {
+                        logout();
+                        navigate("/"); // Redirect ke home setelah logout
+                      }}
                       className="cursor-pointer text-red-600 focus:text-red-600 rounded-lg bg-red-50 focus:bg-red-100"
                     >
                       <LogOut className="mr-2 h-4 w-4" /> Keluar
@@ -232,16 +261,15 @@ export const Header: React.FC = () => {
             {navLinks.map((link) => {
               const isProtectedAndNotAuth =
                 link.requiresAuth && !isAuthenticated;
+
+              // Komponen Link Dasar
               const LinkComponent = (
-                <Link
+                <a // Ganti Link dengan 'a' atau div tapi di-handle onClick manual
                   key={link.href}
-                  to={link.href}
-                  onClick={(e) =>
-                    isProtectedAndNotAuth &&
-                    handleProtectedLinkClick(e as any, true, link.href)
-                  }
+                  href={link.href}
+                  onClick={(e) => handleNavigation(e, link)}
                   className={cn(
-                    "px-5 py-2 text-sm font-medium transition-all rounded-full whitespace-nowrap flex items-center gap-1.5",
+                    "cursor-pointer px-5 py-2 text-sm font-medium transition-all rounded-full whitespace-nowrap flex items-center gap-1.5",
                     "text-slate-600 hover:text-primary hover:bg-primary/5 active:scale-95"
                   )}
                 >
@@ -249,7 +277,7 @@ export const Header: React.FC = () => {
                   {isProtectedAndNotAuth && (
                     <Lock className="h-3 w-3 text-slate-400" />
                   )}
-                </Link>
+                </a>
               );
 
               return isProtectedAndNotAuth ? (
@@ -290,19 +318,17 @@ export const Header: React.FC = () => {
 
           <nav className="grid grid-cols-2 gap-3">
             {navLinks.map((link) => (
-              <Link
+              <a
                 key={link.href}
-                to={link.href}
-                onClick={(e) =>
-                  handleProtectedLinkClick(e, link.requiresAuth, link.href)
-                }
-                className="px-4 py-3 text-sm font-medium text-slate-700 bg-slate-50 rounded-xl flex items-center justify-center text-center hover:bg-primary/5 hover:text-primary transition-colors border border-slate-100"
+                href={link.href}
+                onClick={(e) => handleNavigation(e, link)}
+                className="cursor-pointer px-4 py-3 text-sm font-medium text-slate-700 bg-slate-50 rounded-xl flex items-center justify-center text-center hover:bg-primary/5 hover:text-primary transition-colors border border-slate-100"
               >
                 {link.label}
                 {link.requiresAuth && !isAuthenticated && (
                   <Lock className="ml-2 h-3 w-3 opacity-50" />
                 )}
-              </Link>
+              </a>
             ))}
           </nav>
 
@@ -318,19 +344,22 @@ export const Header: React.FC = () => {
                     <p className="text-xs text-slate-500">{user?.email}</p>
                   </div>
                 </div>
-                <Link to="/profil" onClick={() => setIsMenuOpen(false)}>
-                  <Button
-                    variant="outline"
-                    className="w-full mt-4 justify-start h-12 rounded-xl"
-                  >
-                    <User className="mr-3 h-5 w-5" /> Profil Saya
-                  </Button>
-                </Link>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    navigate("/profil");
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full mt-4 justify-start h-12 rounded-xl"
+                >
+                  <User className="mr-3 h-5 w-5" /> Profil Saya
+                </Button>
                 <Button
                   variant="ghost"
                   className="w-full justify-start h-12 rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
                   onClick={() => {
                     logout();
+                    navigate("/");
                     setIsMenuOpen(false);
                   }}
                 >

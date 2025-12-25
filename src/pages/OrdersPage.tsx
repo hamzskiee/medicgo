@@ -261,17 +261,10 @@ const OrdersPage: React.FC = () => {
               const status = getStatus(order.status);
               const StatusIcon = status.icon;
 
-              // LOGIC MUNCULKAN HARGA
-              // Muncul jika produk, ATAU jika resep dan harganya > 0
               const showPrice =
                 order.type === "product_order" ||
                 (order.type === "prescription" && (order.total || 0) > 0);
 
-              // LOGIC MUNCULKAN TOMBOL BAYAR (PERBAIKAN UTAMA DISINI)
-              // Muncul jika:
-              // 1. Tipe Resep
-              // 2. Ada Harga (> 0)
-              // 3. Status adalah 'processing' (Diproses) ATAU 'approved' (Disetujui)
               const showPayButton =
                 order.type === "prescription" &&
                 (order.total || 0) > 0 &&
@@ -454,7 +447,7 @@ const OrdersPage: React.FC = () => {
                           </Dialog>
                         )}
 
-                        {/* Lacak Pesanan */}
+                        {/* Lacak Pesanan (UPDATED: Use navigate instead of window.location.href) */}
                         {(order.status === "shipped" ||
                           order.status === "delivered" ||
                           order.status === "dikirim" ||
@@ -462,9 +455,10 @@ const OrdersPage: React.FC = () => {
                           <Button
                             size="sm"
                             className="bg-primary hover:bg-primary/90 gap-1"
-                            onClick={() =>
-                              (window.location.href = `/lacak-pesanan?id=${order.id}`)
-                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/lacak-pesanan?id=${order.id}`);
+                            }}
                           >
                             Lacak <ChevronRight className="w-4 h-4" />
                           </Button>

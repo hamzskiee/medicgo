@@ -20,15 +20,15 @@ const quickReplies = [
 
 const botResponses: Record<string, string> = {
   "cara melacak pesanan":
-    'Untuk melacak pesanan, buka menu "Pesanan Saya" atau klik link tracking yang dikirim via SMS/email setelah pesanan dikonfirmasi.',
+    'Untuk melacak pesanan, buka menu "Pesanan Saya" atau klik link tracking yang dikirim via WhatsApp/email setelah pesanan dikonfirmasi.',
   "metode pembayaran":
-    "Kami menerima pembayaran via Transfer Bank (BCA, Mandiri, BNI), E-wallet (GoPay, DANA, OVO), QRIS, dan COD untuk area tertentu.",
+    "Kami menerima pembayaran via Transfer Bank (BCA, Mandiri, BNI), E-wallet (GoPay, DANA, OVO), QRIS, dan COD untuk pesanan dibawah 100rb.",
   "cara upload resep":
     'Klik tombol "Upload Resep" di halaman utama atau menu, lalu foto/upload gambar resep dokter Anda. Tim apoteker kami akan memverifikasi dalam 15 menit.',
   "jam operasional":
     "Layanan MedicGo tersedia 24/7. Pengiriman express tersedia pukul 08:00 - 22:00. Konsultasi apoteker tersedia kapan saja.",
   default:
-    "Terima kasih atas pertanyaan Anda. Tim customer service kami akan segera membantu. Untuk bantuan langsung, hubungi WhatsApp kami 0813-7526-3803.",
+    "Terima kasih atas pertanyaan Anda. Tim customer service kami akan segera membantu. Untuk bantuan langsung, hubungi WhatsApp kami 0852-1593-2326.",
 };
 
 export const ChatWidget: React.FC = () => {
@@ -44,13 +44,15 @@ export const ChatWidget: React.FC = () => {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+    scrollToBottom();
+  }, [messages, isTyping, isOpen]); // Tambah isOpen biar pas dibuka langsung scroll bawah
 
   const getBotResponse = (userMessage: string): string => {
     const lowerMessage = userMessage.toLowerCase();
@@ -137,7 +139,8 @@ export const ChatWidget: React.FC = () => {
         </div>
 
         {/* Messages */}
-        <ScrollArea className="h-80 p-4" ref={scrollRef}>
+        {/* Hapus ref={scrollRef} dari sini karena kita pakai metode anchor */}
+        <ScrollArea className="h-80 p-4">
           <div className="space-y-4">
             {messages.map((message) => (
               <div
@@ -203,6 +206,9 @@ export const ChatWidget: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* 4. TAMBAH INI: Elemen kosong tak terlihat di paling bawah */}
+            <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
 

@@ -50,7 +50,7 @@ const faqItems = [
 ];
 
 export const FAQSection: React.FC = () => {
-  const whatsappNumber = "62813456789"; 
+  const whatsappNumber = "6285215932326"; 
   const message = "Halo Admin MedicGo, saya masih punya pertanyaan lain yang tidak ada di FAQ.";
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
   return (

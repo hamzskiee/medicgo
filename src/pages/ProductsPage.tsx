@@ -16,8 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// --- INTERFACE ---
-// Kita sesuaikan dengan struktur ProductCard agar tidak error
 interface Product {
   id: string;
   name: string;
@@ -28,7 +26,6 @@ interface Product {
   rating: number;
   reviewCount: number;
   stock: number;
-  // Properti tambahan
   description?: string;
   brand?: string;
   tags?: string[];
@@ -36,10 +33,23 @@ interface Product {
   requiresPrescription?: boolean;
 }
 
+// 1. KAMUS LABEL (Hanya untuk Tampilan di Layar)
+const CATEGORY_LABELS: Record<string, string> = {
+  semua: "Semua",
+  obat: "Obat",
+  vitamin: "Vitamin",
+  "alat-kesehatan": "Alat Kesehatan",
+  "perawatan-diri": "Perawatan Diri",
+};
+
 const ProductsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Ambil dari URL & Paksa Lowercase (biar cocok dgn database: "alat-kesehatan")
   const initialSearch = searchParams.get("search") || "";
-  const initialCategory = searchParams.get("category") || "Semua";
+  const initialCategory = (
+    searchParams.get("category") || "semua"
+  ).toLowerCase();
 
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
@@ -47,45 +57,45 @@ const ProductsPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const categories = [
-    "Semua",
-    "Obat",
-    "Vitamin",
-    "Alat-Kesehatan",
-    "Perawatan-Diri",
-  ];
+  // Ambil list key kategori (semua, obat, alat-kesehatan, dll)
+  const categories = Object.keys(CATEGORY_LABELS);
 
-  // --- FETCH DATA (DENGAN LOGIC PENCARIAN BARU) ---
+  // --- SINKRONISASI URL KE STATE ---
+  useEffect(() => {
+    const urlSearch = searchParams.get("search") || "";
+    const urlCategory = (searchParams.get("category") || "semua").toLowerCase();
+
+    setSearchQuery(urlSearch);
+    setSelectedCategory(urlCategory);
+  }, [searchParams]);
+
+  // --- FETCH DATA ---
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
         let query = supabase.from("products").select("*");
 
-        // 1. FILTER PENCARIAN CANGGIH (Semantic-like)
-        // Mencari di Nama ATAU Brand ATAU Tags ATAU Deskripsi
+        // 1. Filter Text
         if (searchQuery) {
-          const term = `%${searchQuery}%`; // Wildcard search
+          const term = `%${searchQuery}%`;
           query = query.or(
             `name.ilike.${term},brand.ilike.${term},tags.ilike.${term},description.ilike.${term}`
           );
         }
 
-        // 2. FILTER KATEGORI
-        if (selectedCategory !== "Semua") {
-          // Asumsi di DB kategori disimpan lowercase (misal: "obat")
-          query = query.ilike("category", selectedCategory);
+        // 2. Filter Kategori (PERBAIKAN DISINI)
+        // Karena di DB isinya "alat-kesehatan", kita pakai LANGSUNG selectedCategory
+        if (selectedCategory && selectedCategory !== "semua") {
+          query = query.eq("category", selectedCategory);
         }
 
-        // Urutkan terbaru
         query = query.order("created_at", { ascending: false });
 
         const { data, error } = await query;
-
         if (error) throw error;
 
         if (data) {
-          // Mapping data dari DB ke App
           const mappedProducts: Product[] = data.map((item: any) => ({
             id: item.id,
             name: item.name,
@@ -102,7 +112,6 @@ const ProductsPage: React.FC = () => {
             tags: item.tags ? item.tags.split(",") : [],
             requiresPrescription: item.requires_prescription || false,
           }));
-
           setProducts(mappedProducts);
         }
       } catch (error) {
@@ -113,23 +122,24 @@ const ProductsPage: React.FC = () => {
     };
 
     fetchProducts();
-  }, [searchQuery, selectedCategory]); // Refresh saat search/kategori berubah
+  }, [searchQuery, selectedCategory]);
 
-  // Update URL saat filter berubah
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSearchParams({ search: searchQuery, category: selectedCategory });
   };
 
-  const handleCategoryChange = (cat: string) => {
-    setSelectedCategory(cat);
-    setSearchParams({ search: searchQuery, category: cat });
+  const handleCategoryChange = (catKey: string) => {
+    if (catKey === "semua") {
+      setSearchParams({ search: searchQuery, category: "semua" });
+    } else {
+      setSearchParams({ search: searchQuery, category: catKey });
+    }
   };
 
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 min-h-screen">
-        {/* Header & Search */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-foreground">
@@ -147,7 +157,7 @@ const ProductsPage: React.FC = () => {
             <div className="relative w-full md:w-80">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Cari nama, gejala (misal: pusing)..."
+                placeholder="Cari nama, gejala..."
                 className="pl-9"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -155,7 +165,10 @@ const ProductsPage: React.FC = () => {
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSearchParams({ search: "", category: selectedCategory });
+                  }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
@@ -163,7 +176,6 @@ const ProductsPage: React.FC = () => {
               )}
             </div>
 
-            {/* Filter Mobile */}
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" size="icon" className="md:hidden">
@@ -177,14 +189,17 @@ const ProductsPage: React.FC = () => {
                 <div className="mt-6 space-y-4">
                   <h3 className="font-semibold mb-2">Kategori</h3>
                   <div className="flex flex-col gap-2">
-                    {categories.map((cat) => (
+                    {categories.map((catKey) => (
                       <Button
-                        key={cat}
-                        variant={selectedCategory === cat ? "default" : "ghost"}
+                        key={catKey}
+                        variant={
+                          selectedCategory === catKey ? "default" : "ghost"
+                        }
                         className="justify-start"
-                        onClick={() => handleCategoryChange(cat)}
+                        onClick={() => handleCategoryChange(catKey)}
                       >
-                        {cat}
+                        {/* Tampilkan Label Cantik */}
+                        {CATEGORY_LABELS[catKey]}
                       </Button>
                     ))}
                   </div>
@@ -194,21 +209,22 @@ const ProductsPage: React.FC = () => {
           </form>
         </div>
 
-        {/* Categories (Desktop) */}
+        {/* Categories Chips (Desktop) */}
         <div className="hidden md:flex flex-wrap gap-2 mb-8">
-          {categories.map((cat) => (
+          {categories.map((catKey) => (
             <Badge
-              key={cat}
-              variant={selectedCategory === cat ? "default" : "outline"}
+              key={catKey}
+              variant={selectedCategory === catKey ? "default" : "outline"}
               className="cursor-pointer px-4 py-2 text-sm hover:bg-primary/90 hover:text-primary-foreground transition-colors"
-              onClick={() => handleCategoryChange(cat)}
+              onClick={() => handleCategoryChange(catKey)}
             >
-              {cat}
+              {/* Tampilkan Label Cantik */}
+              {CATEGORY_LABELS[catKey]}
             </Badge>
           ))}
         </div>
 
-        {/* Results Info */}
+        {/* Info & Grid Produk */}
         {searchQuery && (
           <div className="mb-6">
             <h2 className="text-xl font-semibold">
@@ -220,10 +236,8 @@ const ProductsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Product Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
           {loading ? (
-            // SKELETON LOADING
             Array.from({ length: 8 }).map((_, index) => (
               <div key={index} className="space-y-3">
                 <Skeleton className="h-[200px] w-full rounded-xl" />
@@ -234,12 +248,10 @@ const ProductsPage: React.FC = () => {
               </div>
             ))
           ) : products.length > 0 ? (
-            // DATA PRODUK
             products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))
           ) : (
-            // EMPTY STATE
             <div className="col-span-full py-16 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
                 <Search className="h-8 w-8 text-muted-foreground" />
@@ -248,14 +260,14 @@ const ProductsPage: React.FC = () => {
                 Produk tidak ditemukan
               </h3>
               <p className="text-muted-foreground max-w-sm mx-auto mt-2">
-                Coba gunakan kata kunci yang lebih umum atau cek ejaan Anda.
-                (Tips: Coba cari "sakit kepala" atau "flu")
+                Coba reset filter atau cek database Anda.
               </p>
               <Button
                 variant="link"
                 onClick={() => {
                   setSearchQuery("");
-                  setSelectedCategory("Semua");
+                  setSelectedCategory("semua");
+                  setSearchParams({});
                 }}
                 className="mt-4"
               >
